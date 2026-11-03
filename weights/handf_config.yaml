@@ -1,0 +1,13 @@
+# Architecture of the released checkpoint, handf_epoch_2000.pth.
+# This is the only section the code reads; see train.py for the training settings.
+
+model:
+  DeepSDFCondHaNDF:
+    latent_dim: 64          # DeepSDF object code
+    dim: 256                # token width
+    depth: 4                # transformer blocks
+    heads: 8
+    mlp_dim: 1024
+    dropout: 0.1
+    use_rope: true
+    softplus_beta: 1
