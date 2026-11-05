@@ -6,6 +6,8 @@ Official code and weights for the NeurIPS 2026 paper.
 ![teaser](assets/teaser.jpg)
 
 
+The prior can be applied to many hand-related tasks, such as hand-object interaction, hand generation, hand denoising, and hand completion. It can be used to refine hand poses directly or serve as a regularizer during network training.
+
 ## Install
 
 ```bash
