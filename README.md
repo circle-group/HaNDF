@@ -12,7 +12,15 @@ The prior can be applied to many hand-related tasks, such as hand-object interac
 
 ```bash
 pip install torch numpy pyyaml
+
+# for the m2m metric
+pip install git+https://github.com/hassony2/manopth
 ```
+
+m2m calculation also needs the MANO hand model. Register at
+[mano.is.tue.mpg.de](https://mano.is.tue.mpg.de/) and put `MANO_RIGHT.pkl` in `mano/models/` at the
+root of this repo. If you keep MANO somewhere else, pass its directory
+as `--mano-root`.
 
 ## Quick start
 
@@ -27,7 +35,8 @@ Evaluate the denoising accuracy on the included test set:
 
 ```bash
 python eval_testset.py
-# dq_deg: 11.8033 (noisy) -> 5.4330 (denoised)
+# dq  : 11.8033 -> 5.4330 deg
+# m2m : 11.1595 -> 6.2892 mm
 ```
 
 Train from scratch:
@@ -74,13 +83,14 @@ input rotation.
 
 ## Results
 
-`eval_testset.py` reports **dq**: the RMS-over-15-joints geodesic distance between the denoised pose
-and the ground truth, averaged over the test set, in degrees.
+`eval_testset.py` compares the denoised pose with the ground truth and averages over the test set:
+**dq**, the RMS-over-15-joints geodesic distance in degrees, and **m2m**, the distance between the
+two MANO hands in mm.
 
-| | dq (deg) |
-|---|---|
-| noisy input, sigma = 0.8 | 11.8033 |
-| **after projection** | **5.4330** |
+| | dq (deg) | m2m (mm) |
+|---|---|---|
+| noisy input, sigma = 0.8 | 11.8033 | 11.1595 |
+| **after projection** | **5.4330** | **6.2892** |
 
 3,000 test poses over 30 held-out objects, 500 projection steps.
 
@@ -96,18 +106,15 @@ random axis through a geodesic angle drawn from Exp(0.8) (seed 0).
 
 ## Training
 
-`train.py` implements the recipe that produced `weights/handf_epoch_2000.pth`:
+`train.py` implements the training recipe described in the paper:
 
 | | |
 |---|---|
 | noise | geodesic angle h ~ Exp(0.8) about a random axis, half of each batch restricted to 1–4 whole fingers |
 | label | exact geodesic distance to the nearest clean pose of the same object |
-| loss | `L1(predicted, label) + 0.02 x direction loss` |
+| loss | `L1(predicted, label)` |
 | optimiser | AdamW 1e-4, cosine schedule to 1e-6, gradient clip 1.0 |
 | schedule | 2000 epochs x 12 steps x batch 8192, seed 4 |
-
-The direction loss aligns the descent direction with the direction toward that nearest pose, both
-projected onto the tangent space.
 
 `train.py` writes a checkpoint every 500 epochs, and the released weights are simply the last one.
 No validation set is used to choose between them. An earlier checkpoint may well perform better.

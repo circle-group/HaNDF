@@ -8,9 +8,7 @@ One object-conditioned distance field over the 15 MANO finger joints. Each step:
      "partial" -- the noise is supported on 1-4 whole fingers, the rest stay exact
   3. label = exact geodesic distance to the nearest clean pose OF THE SAME OBJECT
      (the sample's own clean pose is a candidate), searched exhaustively
-  4. loss = L1(predicted distance, label) + 0.02 * direction loss, where the
-     direction loss aligns the descent direction -grad f with the direction toward
-     that nearest pose, both projected onto the tangent of the unit spheres
+  4. loss = L1(predicted distance, label)
 
     python train.py                        # full recipe: 2000 epochs
     python train.py --max-epoch 2 --epoch-size 8192 --batch-size 512   # smoke test
@@ -26,7 +24,7 @@ import numpy as np
 import torch
 
 from handf.handf_deepsdf import DeepSDFCondHaNDF
-from handf_infer import HERE, aa_to_quat, gradient
+from handf_infer import HERE, aa_to_quat
 
 N_HAND_JOINTS = 15
 FINGER_JOINTS = [[0, 1, 2], [3, 4, 5], [6, 7, 8], [9, 10, 11], [12, 13, 14]]
@@ -86,22 +84,19 @@ def corrupt(clean, sigma, rng, partial):
 
 
 def object_nn(q, pool, org):
-    """Exact nearest clean pose of this object under the mean per-joint geodesic.
+    """Distance to the nearest clean pose of this object, under the mean per-joint geodesic.
 
     q (B,15,4), pool (P,15,4), org (B,15,4) the samples' own clean poses (extra candidate).
-    -> distances (B,), nearest poses (B,15,4)
+    -> distances (B,)
     """
     d = np.arccos(np.clip(np.abs(np.einsum('bjk,pjk->bpj', q, pool)), -1.0, 1.0)).mean(-1)
-    i = d.argmin(1)
-    best_d, best_q = d[np.arange(len(q)), i], pool[i]
+    best_d = d.min(1)
     do = np.arccos(np.clip(np.abs((q * org).sum(-1)), -1.0, 1.0)).mean(-1)
-    take = do < best_d
-    return (np.where(take, do, best_d).astype(np.float32),
-            np.where(take[:, None, None], org, best_q).astype(np.float32))
+    return np.minimum(best_d, do).astype(np.float32)
 
 
 def make_batch(objects, size, sigma, partial_frac, rng):
-    """(noisy (B,15,4), code (B,64), label (B,), nn (B,15,4)) — labels per object."""
+    """(noisy (B,15,4), code (B,64), label (B,)) — labels searched per object."""
     oi = rng.integers(0, len(objects), size=size)
     noisy = np.empty((size, N_HAND_JOINTS, 4), dtype=np.float32)
     org = np.empty_like(noisy)
@@ -112,23 +107,11 @@ def make_batch(objects, size, sigma, partial_frac, rng):
         noisy[b] = corrupt(org[b], sigma, rng, partial=rng.random() < partial_frac)
         code[b] = o['code']
     label = np.empty(size, dtype=np.float32)
-    nn = np.empty_like(noisy)
     for k in np.unique(oi):                                        # one search per object
         m = oi == k
-        label[m], nn[m] = object_nn(noisy[m], objects[k]['poses'], org[m])
-    return noisy, code, label, nn
+        label[m] = object_nn(noisy[m], objects[k]['poses'], org[m])
+    return noisy, code, label
 
-
-def direction_loss(g, theta, nn):
-    """1 - cos between the descent direction -grad f and the direction toward nn,
-    both projected onto the tangent space of the product of unit spheres."""
-    sign = torch.sign((theta * nn).sum(-1, keepdim=True))
-    nn = nn * torch.where(sign == 0, torch.ones_like(sign), sign)  # q and -q are one rotation
-    tangent = lambda u: u - (u * theta).sum(-1, keepdim=True) * theta
-    cos = torch.nn.functional.cosine_similarity(
-        tangent(-g).reshape(len(theta), -1), tangent(nn - theta).reshape(len(theta), -1),
-        dim=-1, eps=1e-8)
-    return (1.0 - cos).mean()
 
 
 def main():
@@ -139,7 +122,6 @@ def main():
     p.add_argument('--out', default=os.path.join(HERE, 'runs', 'handf'))
     p.add_argument('--noise-level', type=float, default=0.8)
     p.add_argument('--partial-frac', type=float, default=0.5)
-    p.add_argument('--grad-weight', type=float, default=0.02)
     p.add_argument('--lr', type=float, default=1e-4)
     p.add_argument('--batch-size', type=int, default=8192)
     p.add_argument('--epoch-size', type=int, default=100000)
@@ -168,29 +150,24 @@ def main():
 
     for ep in range(a.max_epoch):
         model.train()
-        tot = tot_dir = 0.0
+        tot = 0.0
         for _ in range(steps):
-            noisy, code, label, nn = make_batch(
+            noisy, code, label = make_batch(
                 objects, a.batch_size, a.noise_level, a.partial_frac, rng)
-            th = torch.from_numpy(noisy).to(dev).requires_grad_(True)
+            th = torch.from_numpy(noisy).to(dev)
             ol = torch.from_numpy(code).to(dev)
             gt = torch.from_numpy(label).to(dev)
-            nnt = torch.from_numpy(nn).to(dev)
 
             pred = model(th, ol).squeeze(-1)
-            g = gradient(th, pred.unsqueeze(-1)).reshape(-1, N_HAND_JOINTS, 4)
-            dl = direction_loss(g, th, nnt)
-            loss = torch.nn.functional.l1_loss(pred, gt) + a.grad_weight * dl
+            loss = torch.nn.functional.l1_loss(pred, gt)
 
             opt.zero_grad()
             loss.backward()
             torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
             opt.step()
             tot += loss.item()
-            tot_dir += dl.item()
         sched.step()
-        print(f'epoch {ep:4d}  loss {tot / steps:.5f}  dir {tot_dir / steps:.5f}  '
-              f'lr {sched.get_last_lr()[0]:.2e}', flush=True)
+        print(f'epoch {ep:4d}  loss {tot / steps:.5f}  lr {sched.get_last_lr()[0]:.2e}', flush=True)
 
         if (ep + 1) % a.save_every == 0 or ep + 1 == a.max_epoch:
             path = os.path.join(a.out, f'epoch_{ep + 1}.pth')
