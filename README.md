@@ -134,5 +134,5 @@ from NRDF (non-commercial research license).
 
 ## Acknowledgements
 
-We thank the authors of NRDF, Pose-NDF, EasyHOI, AlignSDF, HMP, iHOI, HOI4D, DexYCB and OakInk for
+We thank the authors of NRDF, Pose-NDF, EasyHOI, AlignSDF, HMP, iHOI, HaMeR, LatentHOI, Text2HOI, HOI4D, G-HOP, DexYCB and OakInk for
 providing their code and data.
