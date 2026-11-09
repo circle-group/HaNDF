@@ -97,7 +97,7 @@ def main():
     p.add_argument('--ckpt', default=os.path.join(HERE, 'weights', 'handf.pth'))
     p.add_argument('--config', default=os.path.join(HERE, 'weights', 'handf_config.yaml'))
     p.add_argument('--iterations', type=int, default=500)
-    p.add_argument('--step', type=float, default=0.1)
+    p.add_argument('--step', type=float, default=2.0)
     p.add_argument('--norm', dest='norm', action='store_true',
                    help='normalise the Riemannian gradient (pairs with --step 0.02)')
     p.add_argument('--mano-root', default=os.environ.get(

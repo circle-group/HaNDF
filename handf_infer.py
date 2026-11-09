@@ -5,7 +5,7 @@ Object   one 64-d DeepSDF code: weights/object_codes/<name>.pt (HOI4D objects)
 Pose     15 MANO finger joints as unit quaternions (w, x, y, z), shape (B, 15, 4), MANO
          flat_hand_mean=True convention. MANO axis-angle (B, 45) or (B, 48) -> aa_to_quat.
 
-Projection runs 500 Riemannian steps at step size 0.1 with an un-normalized gradient.
+Projection runs 500 Riemannian steps at step size 2.0 with an un-normalized gradient.
 
     python handf_infer.py --code weights/object_codes/Mug__046.pt
 """
@@ -183,7 +183,7 @@ def distance(model, hand, code, device):
     return model(hand.to(device), code.to(device)).view(-1).cpu()
 
 
-def project(model, hand, code, device, iterations=500, step_size=0.1, norm_grad=False, mask=None):
+def project(model, hand, code, device, iterations=500, step_size=2.0, norm_grad=False, mask=None):
     """Riemannian descent of the predicted distance.
 
     hand (B, 15, 4), code (B, 64); mask (B, 15) bool = joints to update (default: all; frozen joints
@@ -220,6 +220,8 @@ def main():
     ap.add_argument('--n', type=int, default=8)
     ap.add_argument('--noise', type=float, default=0.3, help='per-joint random rotation angle (rad)')
     ap.add_argument('--seed', type=int, default=0)
+    ap.add_argument('--iterations', type=int, default=500, help='projection steps')
+    ap.add_argument('--step', type=float, default=2.0, help='projection step size')
     ap.add_argument('--device', default='cuda:0')
     args = ap.parse_args()
 
@@ -232,7 +234,7 @@ def main():
     hand = aa_to_quat((axis * args.noise).reshape(args.n, 45))
     code = z.unsqueeze(0).expand(args.n, -1)
     d0 = distance(model, hand, code, dev)
-    out = project(model, hand, code, dev)
+    out = project(model, hand, code, dev, iterations=args.iterations, step_size=args.step)
     d1 = distance(model, out, code, dev)
     print(f'{os.path.basename(args.code)}: predicted distance before {d0.mean():.4f} -> after {d1.mean():.4f} rad '
           f'(mean of {args.n} poses)')
