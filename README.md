@@ -28,15 +28,15 @@ Project 8 noisy hands onto the grasp manifold of one object:
 
 ```bash
 python handf_infer.py --code weights/object_codes/Mug__046.pt
-# Mug__046.pt: predicted distance before 0.1578 -> after 0.0033 rad (mean of 8 poses)
+# Mug__046.pt: predicted distance before 0.1638 -> after 0.0060 rad (mean of 8 poses)
 ```
 
 Evaluate the denoising accuracy on the included test set:
 
 ```bash
 python eval_testset.py
-# dq  : 11.8033 -> 5.4330 deg
-# m2m : 11.1595 -> 6.2892 mm
+# dq  : 11.8033 -> 5.9231 deg
+# m2m : 11.1595 -> 6.7702 mm
 ```
 
 Train from scratch:
@@ -90,7 +90,7 @@ two MANO hands in mm.
 | | dq (deg) | m2m (mm) |
 |---|---|---|
 | noisy input, sigma = 0.8 | 11.8033 | 11.1595 |
-| **after projection** | **5.4330** | **6.2892** |
+| **after projection** | **5.9231** | **6.7702** |
 
 3,000 test poses over 30 held-out objects, 500 projection steps.
 

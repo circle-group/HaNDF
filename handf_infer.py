@@ -1,6 +1,6 @@
 """HaNDF inference: distance query and projection of a hand pose onto the grasp manifold of an object.
 
-Weights  weights/handf_epoch_2000.pth + weights/handf_config.yaml
+Weights  weights/handf.pth + weights/handf_config.yaml
 Object   one 64-d DeepSDF code: weights/object_codes/<name>.pt (HOI4D objects)
 Pose     15 MANO finger joints as unit quaternions (w, x, y, z), shape (B, 15, 4), MANO
          flat_hand_mean=True convention. MANO axis-angle (B, 45) or (B, 48) -> aa_to_quat.
@@ -141,7 +141,7 @@ def gradient(inputs, outputs):
 
 
 # Loading the trained field, an object's code, and validating what callers pass in.
-def load_handf(device, ckpt=os.path.join(HERE, 'weights', 'handf_epoch_2000.pth'),
+def load_handf(device, ckpt=os.path.join(HERE, 'weights', 'handf.pth'),
                config=os.path.join(HERE, 'weights', 'handf_config.yaml')):
     with open(config, 'r') as f:
         cfg = yaml.load(f, Loader=yaml.FullLoader)

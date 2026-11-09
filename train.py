@@ -1,4 +1,4 @@
-"""Minimal HaNDF training — the recipe that produced weights/handf_epoch_2000.pth.
+"""Minimal HaNDF training — the recipe that produced weights/handf.pth.
 
 One object-conditioned distance field over the 15 MANO finger joints. Each step:
 

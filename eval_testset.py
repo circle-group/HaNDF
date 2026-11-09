@@ -94,7 +94,7 @@ def main():
     p.add_argument('--testset', default=os.path.join(HERE, 'testset'))
     p.add_argument('--sigma', type=float, default=0.8)
     p.add_argument('--codes', default=os.path.join(HERE, 'weights', 'object_codes'))
-    p.add_argument('--ckpt', default=os.path.join(HERE, 'weights', 'handf_epoch_2000.pth'))
+    p.add_argument('--ckpt', default=os.path.join(HERE, 'weights', 'handf.pth'))
     p.add_argument('--config', default=os.path.join(HERE, 'weights', 'handf_config.yaml'))
     p.add_argument('--iterations', type=int, default=500)
     p.add_argument('--step', type=float, default=0.1)
